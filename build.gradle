@@ -1,39 +1,29 @@
 apply plugin: 'application'
 apply plugin: 'findbugs'
-apply plugin: 'java'
-apply plugin: 'idea'
+apply plugin: 'java-library'
 
 mainClassName = 'org.dsa.iot.etsdb.Main'
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
-version = '0.18.3-SNAPSHOT'
+version = '0.19.0'
 
 repositories {
+    mavenLocal()
     mavenCentral()
     maven {
         url 'https://oss.sonatype.org/content/repositories/snapshots/'
     }
 }
 
-configurations {
-    provided
-}
-
-idea {
-    module {
-        scopes.PROVIDED.plus += [ configurations.provided ]
-    }
+wrapper {
+    gradleVersion = '4.10'
 }
 
 dependencies {
-    compile 'org.iot-dsa:historian:0.18.3-SNAPSHOT'
-    compile 'org.iot-dsa:commons:0.18.3-SNAPSHOT'
-    compile 'org.iot-dsa:dslink:0.18.3-SNAPSHOT'
-    provided 'com.google.code.findbugs:annotations:3.0.1'
-}
-
-compileJava {
-    sourceSets.main.compileClasspath += configurations.provided
+    compileOnly 'com.google.code.findbugs:annotations:[3.0.1,)'
+    api 'org.iot-dsa:commons:0.20.1'
+    api 'org.iot-dsa:dslink:0.20.1'
+    api 'org.iot-dsa:historian:0.20.1'
 }
 
 run {
