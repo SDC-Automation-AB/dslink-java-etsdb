@@ -70,7 +70,7 @@ public class Db extends Database {
 
     private void setDiskSpaceRemaining(int space) {
         long totalSize = fPath.getTotalSpace();
-        this.diskSpaceRemaining = totalSize * (space / 100);
+        this.diskSpaceRemaining = (long) (totalSize * (space / 100.0));
     }
 
     @Override

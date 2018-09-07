@@ -59,27 +59,36 @@ public class DbPurger {
                     long curr = path.getUsableSpace();
                     long request = db.getDiskSpaceRemaining();
                     long delCount = 0;
-                    while (curr - request <= 0) {
+                    if (curr - request <= 0) {
                         if (!running) {
                             break;
                         }
                         DatabaseImpl<ByteData> realDb = db.getDb();
 
                         List<String> series = realDb.getSeriesIds();
-                        TimeRange range = realDb.getTimeRange(series);
-                        if (range == null || range.isUndefined()) {
-                            break;
+                        if (File.separatorChar != '/') {
+                        	List<String> corrected = new ArrayList<String>();
+	                        for (String s: series) {
+	                        	corrected.add(s.replace(File.separatorChar, '/'));
+	                        }
+	                        series = corrected;
                         }
-
-                        long from = range.getFrom();
-                        for (String s : series) {
-                            delCount += realDb.delete(s, from, from + 1);
+                        while (curr - request <= 0) {
+	                        TimeRange range = realDb.getTimeRange(series);
+	                        if (range == null || range.isUndefined()) {
+	                            break;
+	                        }
+	
+	                        long from = range.getFrom();
+	                        for (String s : series) {
+	                            delCount += realDb.delete(s, from, from + 3600000);
+	                        }
+	
+	                        if (delCount <= 0) {
+	                            break;
+	                        }
+	                        curr = path.getUsableSpace();
                         }
-
-                        if (delCount <= 0) {
-                            break;
-                        }
-                        curr = path.getUsableSpace();
                     }
                     if (delCount > 0) {
                         String p = path.getPath();

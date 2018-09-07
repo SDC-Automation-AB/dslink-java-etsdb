@@ -5,7 +5,7 @@ apply plugin: 'java-library'
 mainClassName = 'org.dsa.iot.etsdb.Main'
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
-version = '0.19.0'
+version = '0.19.1'
 
 repositories {
     mavenLocal()
