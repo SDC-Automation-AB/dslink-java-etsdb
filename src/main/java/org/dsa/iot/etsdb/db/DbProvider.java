@@ -10,6 +10,7 @@ import org.dsa.iot.dslink.node.actions.EditorType;
 import org.dsa.iot.dslink.node.actions.Parameter;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
+import org.dsa.iot.dslink.util.Objects;
 import org.dsa.iot.dslink.util.StringUtils;
 import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.etsdb.serializer.ByteData;
@@ -23,6 +24,7 @@ import org.etsdb.impl.DatabaseImpl;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Samuel Grenier
@@ -161,6 +163,16 @@ public class DbProvider extends DatabaseProvider {
         }
 
         addOverrideTypeAction(node, perm);
+        final Value overrideTypeVal = node.getRoConfig("overrideType");
+        if (overrideTypeVal != null) {
+        	node.setValueType(ValueType.toValueType(overrideTypeVal.getString()));
+        	Objects.getDaemonThreadPool().schedule(new Runnable() {
+    			@Override
+    			public void run() {
+    				node.setValueType(ValueType.toValueType(overrideTypeVal.getString()));
+    			}
+            }, 500, TimeUnit.MILLISECONDS);
+        }
     }
 
     @Override
@@ -180,15 +192,18 @@ public class DbProvider extends DatabaseProvider {
                 Value overrideType = event.getParameter("TypeName");
 
                 if (overrideType == null) {
+                	node.removeRoConfig("overrideType");
                     return;
                 }
 
                 String typeAsString = overrideType.getString();
 
                 if (TypeOverrideTypes.NONE == TypeOverrideTypes.fromName(typeAsString)) {
+                	node.removeRoConfig("overrideType");
                     return;
                 }
 
+                node.setRoConfig("overrideType", new Value(typeAsString));
                 node.setValueType(ValueType.toValueType(typeAsString));
             }
         });
