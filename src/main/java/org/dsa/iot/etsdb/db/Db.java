@@ -203,6 +203,7 @@ public class Db extends Database {
                 {
                     purgeParam = new Parameter("Auto Purge", ValueType.BOOL);
                     Value def = NodeUtils.getRoConfig(b, "ap");
+                    b.setRoConfig("ap", def);
                     purgeParam.setDefaultValue(def);
                     {
                         String desc = "Whether the database is allowed to ";
@@ -215,6 +216,7 @@ public class Db extends Database {
                 {
                     spaceParam = new Parameter("Disk Space Remaining", ValueType.NUMBER);
                     Value def = NodeUtils.getRoConfig(b, "dsr");
+                    b.setRoConfig("dsr", def);
                     spaceParam.setDefaultValue(def);
                     {
                         String desc = "Controls how much disk space should be ";

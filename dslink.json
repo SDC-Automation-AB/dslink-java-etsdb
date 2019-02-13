@@ -1,6 +1,6 @@
 {
   "name": "dslink-java-etsdb",
-  "version": "0.19.2",
+  "version": "0.19.3",
   "description": "Historian DSLink implementation for ETSDB",
   "license": "Apache",
   "author": {
