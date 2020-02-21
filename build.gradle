@@ -1,22 +1,21 @@
 apply plugin: 'application'
-apply plugin: 'findbugs'
 apply plugin: 'java-library'
 
 mainClassName = 'org.dsa.iot.etsdb.Main'
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
-version = '0.19.5'
+version = '0.19.6'
 
 repositories {
     mavenLocal()
-    mavenCentral()
+    jcenter()
     maven {
         url 'https://oss.sonatype.org/content/repositories/snapshots/'
     }
 }
 
 wrapper {
-    gradleVersion = '4.10'
+    gradleVersion = '6.1'
 }
 
 dependencies {
@@ -29,13 +28,6 @@ dependencies {
 run {
     args System.getProperty("exec.args", "").split()
     workingDir project.buildDir
-}
-
-tasks.withType(FindBugs) {
-    reports {
-        xml.enabled = false
-        html.enabled = true
-    }
 }
 
 applicationDistribution.from(new File(project.projectDir, "/dslink.json"))

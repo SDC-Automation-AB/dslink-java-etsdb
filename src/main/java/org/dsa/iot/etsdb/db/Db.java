@@ -6,12 +6,10 @@ import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.actions.Action;
 import org.dsa.iot.dslink.node.actions.ActionResult;
 import org.dsa.iot.dslink.node.actions.Parameter;
-import org.dsa.iot.dslink.node.actions.table.Row;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.dslink.util.NodeUtils;
 import org.dsa.iot.dslink.util.Objects;
-import org.dsa.iot.dslink.util.TimeUtils;
 import org.dsa.iot.dslink.util.handler.CompleteHandler;
 import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.etsdb.serializer.ByteData;
@@ -25,8 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -254,32 +250,6 @@ public class Db extends Database {
                             deleteDirectory(fPath);
                         }
                     }));
-            b.build();
-        }
-        
-        {
-            NodeBuilder b = parent.createChild("purge");
-            b.setDisplayName("Purge");
-            b.setSerializable(false);
-            b.setAction(new Action(getProvider().dbPermission(),
-                    new Handler<ActionResult>() {
-                        @Override
-                        public void handle(ActionResult event) {
-                            Value to = event.getParameter("Purge To");
-                            if (to != null && to.getString() != null) {
-                                long toTs = TimeUtils.decode(to.getString());
-                                List<String> series = getSanitizedSeriesIds();
-                                for (String s: series) {
-                                    LOGGER.info("Manually purging series " + s);
-                                    db.delete(s, 0, toTs);
-                                    db.purge(s, toTs);
-                                }
-                                LOGGER.info("Done manually purging");
-                                event.getTable().addRow(Row.make(new Value(true)));
-                            }
-                        }
-                    }).addParameter(new Parameter("Purge To", ValueType.STRING).setDescription("Purge everything older than this date/time"))
-                    .addResult(new Parameter("Success", ValueType.BOOL)));
             b.build();
         }
 
@@ -587,18 +557,5 @@ public class Db extends Database {
             purgeable = vP.getBool();
             setDiskSpaceRemaining(vD.getNumber().intValue());
         }
-    }
-    
-    public List<String> getSanitizedSeriesIds() {
-        DatabaseImpl<ByteData> db = getDb();
-        List<String> series = db.getSeriesIds();
-        if (File.separatorChar != '/') {
-            List<String> corrected = new ArrayList<String>();
-            for (String s: series) {
-                corrected.add(s.replace(File.separatorChar, '/'));
-            }
-            series = corrected;
-        }
-        return series;
     }
 }

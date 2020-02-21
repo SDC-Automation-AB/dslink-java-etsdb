@@ -87,10 +87,6 @@ public class Utils {
     public static long getTimestamp(long shardFile, long offset) {
         return (shardFile << SHARD_BITS) | offset;
     }
-    
-    public static long getLastTimestamp(long shardFile) {
-    	return getTimestamp(shardFile, 0x3fffffff);
-    }
 
     public static void closeQuietly(Closeable c) {
         try {

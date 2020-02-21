@@ -325,7 +325,7 @@ class DataShard {
     long getMinTs() throws IOException {
         if (!dataFile.exists()) {
             if (cache == null || cache.isEmpty()) {
-                return Utils.getLastTimestamp(shardId);
+                return Long.MIN_VALUE;
             }
             return Utils.getTimestamp(shardId, cache.getList().get(0).getOffset());
         }
@@ -342,7 +342,7 @@ class DataShard {
             readSample(in, scanInfo);
 
             if (scanInfo.isEndOfShard()) {
-                return Utils.getLastTimestamp(shardId);
+                return Long.MAX_VALUE;
             }
             return Utils.getTimestamp(shardId, scanInfo.getOffset());
         } finally {

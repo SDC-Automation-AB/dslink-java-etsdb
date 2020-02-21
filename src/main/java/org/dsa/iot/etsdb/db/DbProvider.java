@@ -18,13 +18,11 @@ import org.dsa.iot.historian.database.Database;
 import org.dsa.iot.historian.database.DatabaseProvider;
 import org.dsa.iot.historian.database.Watch;
 import org.dsa.iot.historian.utils.TimeParser;
-import org.etsdb.TimeRange;
 import org.etsdb.TypeOverrideTypes;
 import org.etsdb.impl.DatabaseImpl;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -148,7 +146,7 @@ public class DbProvider extends DatabaseProvider {
                     path = StringUtils.decodeName(path);
 
                     DatabaseImpl<ByteData> db = ((Db) database).getDb();
-                    deleteRange(db, path, fromTs, toTs);
+                    db.delete(path, fromTs, toTs);
                 }
             });
             {
@@ -181,17 +179,9 @@ public class DbProvider extends DatabaseProvider {
     public void deleteRange(Watch watch, long fromTs, long toTs) {
         final Database database = watch.getGroup().getDb();
         DatabaseImpl<ByteData> db = ((Db) database).getDb();
-        deleteRange(db, watch.getPath(), fromTs, toTs);
+        db.delete(watch.getPath(), fromTs, toTs);
     }
-    
-    private void deleteRange(DatabaseImpl<ByteData> db, String path, long fromTs, long toTs) {
-        TimeRange tr = db.getTimeRange(Collections.singletonList(path));
-        if (tr != null && !tr.isUndefined() && fromTs <= tr.getFrom()) {
-            db.purge(path, toTs);
-        }
-        db.delete(path, fromTs, toTs);
-    }
-    
+
     private void addOverrideTypeAction(final Node node, Permission permission) {
         NodeBuilder nodeBuilder = node.createChild("overrideType");
         nodeBuilder.setDisplayName("Override data point type");

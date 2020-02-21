@@ -26,18 +26,14 @@ public class DbPurger {
     private ScheduledFuture<?> fut;
     private boolean running;
 
-    public void addDb(Db db) {
-    	synchronized(databases) {
-	        if (!databases.contains(db)) {
-	            databases.add(db);
-	        }
-    	}
+    public synchronized void addDb(Db db) {
+        if (!databases.contains(db)) {
+            databases.add(db);
+        }
     }
 
-    public void removeDb(Db db) {
-    	synchronized (databases) {
-    		databases.remove(db);
-    	}
+    public synchronized void removeDb(Db db) {
+        databases.remove(db);
     }
 
     public void stop() {
@@ -49,64 +45,56 @@ public class DbPurger {
         }
     }
 
-    public void setupPurger() {
+    void setupPurger() {
         running = true;
         Runnable runner = new Runnable() {
             @Override
             public void run() {
-            	synchronized (databases) {
-                    for (Db db : databases) {
-                        if (!(db.isPurgeable() && running)) {
-                            continue;
+                for (Db db : databases) {
+                    if (!(db.isPurgeable() && running)) {
+                        continue;
+                    }
+
+                    File path = db.getPath();
+                    long curr = path.getUsableSpace();
+                    long request = db.getDiskSpaceRemaining();
+                    long delCount = 0;
+                    if (curr - request <= 0) {
+                        if (!running) {
+                            break;
                         }
-    
-                        File path = db.getPath();
-                        long curr = path.getUsableSpace();
-                        long request = db.getDiskSpaceRemaining();
-                        long delCount = 0;
-                        long shardDelCount = 0;
-                        LOGGER.info("Deciding whether to purge");
-                        LOGGER.info("curr = " + curr + " , request = " + request);
-                        if (curr - request <= 0) {
-                            if (!running) {
-                                break;
-                            }
-                            LOGGER.info("Going to purge");
-                            DatabaseImpl<ByteData> realDb = db.getDb();
-                            List<String> series = db.getSanitizedSeriesIds();
-//                            LOGGER.info("Purge Step 1");
-                            while (curr - request <= 0) {
-//                            	LOGGER.info("Purge Step 2");
-    	                        TimeRange range = realDb.getTimeRange(series);
-    	                        if (range == null || range.isUndefined()) {
-    	                            break;
-    	                        }
-//    	                        LOGGER.info("Purge Step 3");
-    	                        long from = range.getFrom();
-    	                        long to = getToFromFrom(from);
-    	                        for (String s : series) {
-//    	                        	LOGGER.info("Purge Step 4");
-    	                        	delCount += realDb.delete(s, from, to);
-    	                        	int openShards = realDb.getOpenShards();
-    	                        	realDb.purge(s, to);
-    	                        	shardDelCount += (openShards - realDb.getOpenShards());
-    	                        }
-//    	                        LOGGER.info("Purge Step 5");
-    	                        if (delCount <= 0 && shardDelCount <= 0) {
-    	                            break;
-    	                        }
-//    	                        LOGGER.info("Purge Step 6");
-    	                        curr = path.getUsableSpace();
-    	                        LOGGER.info("Purge progress: deleted " + delCount + "records so far");
-    	                        LOGGER.info("curr = " + curr + " , request = " + request);
-                            }
+                        DatabaseImpl<ByteData> realDb = db.getDb();
+
+                        List<String> series = realDb.getSeriesIds();
+                        if (File.separatorChar != '/') {
+                        	List<String> corrected = new ArrayList<String>();
+	                        for (String s: series) {
+	                        	corrected.add(s.replace(File.separatorChar, '/'));
+	                        }
+	                        series = corrected;
                         }
-                        if (delCount > 0) {
-                            String p = path.getPath();
-                            LOGGER.info("Deleted {} records from {}", delCount, p);
+                        while (curr - request <= 0) {
+	                        TimeRange range = realDb.getTimeRange(series);
+	                        if (range == null || range.isUndefined()) {
+	                            break;
+	                        }
+	
+	                        long from = range.getFrom();
+	                        for (String s : series) {
+	                            delCount += realDb.delete(s, from, from + 3600000);
+	                        }
+	
+	                        if (delCount <= 0) {
+	                            break;
+	                        }
+	                        curr = path.getUsableSpace();
                         }
                     }
-            	}
+                    if (delCount > 0) {
+                        String p = path.getPath();
+                        LOGGER.info("Deleted {} records from {}", delCount, p);
+                    }
+                }
             }
         };
         ScheduledThreadPoolExecutor stpe = Objects.getDaemonThreadPool();
@@ -114,14 +102,5 @@ public class DbPurger {
             TimeUnit u = TimeUnit.SECONDS;
             fut = stpe.scheduleWithFixedDelay(runner, 30, 30, u);
         }
-    }
-    
-    private static long getToFromFrom(long from) {
-        long diff = System.currentTimeMillis() - from;
-        long range = (long) (diff * .15);
-        if (range < 3600000) {
-            range = 3600000;
-        }
-        return from + range;
     }
 }
