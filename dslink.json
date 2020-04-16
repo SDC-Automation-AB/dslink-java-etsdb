@@ -1,11 +1,10 @@
 {
   "name": "dslink-java-etsdb",
-  "version": "0.19.6",
+  "version": "0.19.7",
   "description": "Historian DSLink implementation for ETSDB",
   "license": "Apache",
   "author": {
-    "name": "Samuel Grenier",
-    "email": "samrg472@gmail.com"
+    "name": "Samuel Grenier"
   },
   "main": "bin/dslink-java-etsdb",
   "repository": {

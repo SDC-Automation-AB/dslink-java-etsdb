@@ -3,11 +3,16 @@ package org.etsdb.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.Closeable;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class Utils {
+
     // This value must have at least one byte.
     static final byte[] SAMPLE_HEADER = {(byte) 0xfe, (byte) 0xed};
 
@@ -35,8 +40,9 @@ public class Utils {
      */
     public static long getShardDirectory(String seriesId) {
         int i = seriesId.hashCode();
-        if (i < 0)
+        if (i < 0) {
             i = -i;
+        }
         return i % 100;
     }
 
@@ -62,15 +68,17 @@ public class Utils {
      * Returns the offset of the given ts within the given shard.
      *
      * @param shardId ID of the shard
-     * @param ts Timestamp
+     * @param ts      Timestamp
      * @return offset
      */
     public static long getOffsetInShard(long shardId, long ts) {
         long tsShardId = getShardId(ts);
-        if (tsShardId < shardId)
+        if (tsShardId < shardId) {
             return 0;
-        if (tsShardId == shardId)
+        }
+        if (tsShardId == shardId) {
             return getSampleOffset(ts);
+        }
         return 0x40000000;
     }
 
@@ -90,8 +98,9 @@ public class Utils {
 
     public static void closeQuietly(Closeable c) {
         try {
-            if (c != null)
+            if (c != null) {
                 c.close();
+            }
         } catch (IOException e) {
             logger.warn("Exception during close", e);
         }
@@ -110,8 +119,9 @@ public class Utils {
     }
 
     public static void putCompactLong(OutputStream out, long l) throws IOException {
-        if (l < 0)
+        if (l < 0) {
             throw new IllegalArgumentException("Cannot store negative numbers");
+        }
         while (true) {
             if (l < 128) {
                 out.write((byte) l);
@@ -131,11 +141,13 @@ public class Utils {
         int count = 0;
         while (true) {
             long l = in.read();
-            if (l == -1)
+            if (l == -1) {
                 throw new IOException("EOF");
+            }
             result |= (l & 0x7f) << (count++ * 7);
-            if (l < 128)
+            if (l < 128) {
                 break;
+            }
         }
         return result;
     }
@@ -148,8 +160,9 @@ public class Utils {
                 in.mark(1);
                 int i = in.read();
                 in.reset();
-                if (i == -1)
+                if (i == -1) {
                     return true;
+                }
             }
             n -= skipped;
         }
@@ -158,20 +171,24 @@ public class Utils {
     }
 
     public static void deleteWithRetry(File file) throws IOException {
-        if (!file.exists())
+        if (!file.exists()) {
             return;
+        }
 
         int retries = FILE_IO_RETRIES;
         while (true) {
-            if (file.delete())
+            if (file.delete()) {
                 break;
+            }
 
-            if (retries == 0)
+            if (retries == 0) {
                 throw new IOException("Failed to delete " + file);
+            }
 
             retries--;
-            if (logger.isDebugEnabled())
+            if (logger.isDebugEnabled()) {
                 logger.debug("Failed to delete " + file + ", " + retries + " retries left");
+            }
             sleep(FILE_IO_RETRIES - retries);
         }
     }
@@ -179,21 +196,26 @@ public class Utils {
     public static void renameWithRetry(File from, File to) throws IOException {
         int retries = FILE_IO_RETRIES;
         while (true) {
-            if (from.renameTo(to))
+            if (from.renameTo(to)) {
                 break;
-            if (retries == 0)
+            }
+            if (retries == 0) {
                 throw new IOException("Failed to rename " + from + " to " + to);
+            }
 
             retries--;
-            if (logger.isDebugEnabled())
-                logger.debug("Failed to rename " + from + " to " + to + ", " + retries + " retries left");
+            if (logger.isDebugEnabled()) {
+                logger.debug("Failed to rename " + from + " to " + to + ", " + retries +
+                        " retries left");
+            }
             sleep(FILE_IO_RETRIES - retries);
         }
     }
 
     public static void delete(File file) throws IOException {
-        if (!file.exists())
+        if (!file.exists()) {
             return;
+        }
 
         String message = null;
         while (true) {
@@ -202,14 +224,16 @@ public class Utils {
                 break;
             } catch (IOException e) {
                 if (e.getMessage() != null) {
-                    if (message == null)
+                    if (message == null) {
                         message = e.getMessage();
-                    else {
-                        if (e.getMessage().equals(message))
+                    } else {
+                        if (e.getMessage().equals(message)) {
                             throw e;
+                        }
                     }
-                } else
+                } else {
                     throw e;
+                }
             }
         }
     }
@@ -224,31 +248,35 @@ public class Utils {
             }
         }
 
-        if (!file.delete())
+        if (!file.delete()) {
             throw new IOException("Failed to delete " + file);
+        }
     }
 
-    public static void deleteEmptyDirs(File file) {
+    /**
+     * Returns true if the given directory was deleted.
+     */
+    public static boolean deleteEmptyDirs(File file) {
         if (file.isDirectory()) {
             // Recurse to leaves.
             File[] files = file.listFiles();
+            boolean empty = true;
             if (files != null && files.length > 0) {
-                boolean hasFiles = false;
                 for (File subFile : files) {
-                    if (!subFile.isDirectory())
-                        hasFiles = true;
-                    deleteEmptyDirs(subFile);
+                    if (!deleteEmptyDirs(subFile)) {
+                        empty = false;
+                    }
                 }
-                if (!hasFiles)
-                    files = file.listFiles();
             }
-
-            if (files == null || files.length == 0) {
+            if (empty) {
                 if (!file.delete()) {
                     logger.error("Failed to delete empty dir: {}", file.getPath());
+                    return false;
                 }
+                return true;
             }
         }
+        return false;
     }
 
     public static void write4ByteUnsigned(OutputStream out, long l) throws IOException {
@@ -269,18 +297,21 @@ public class Utils {
 
     public static void sleep(int time) {
         try {
-            if (time > 0)
+            if (time > 0) {
                 Thread.sleep(time);
+            }
         } catch (InterruptedException e) {
             // Ignore
         }
     }
 
     public static int compareLong(long l1, long l2) {
-        if (l1 < l2)
+        if (l1 < l2) {
             return -1;
-        if (l1 == l2)
+        }
+        if (l1 == l2) {
             return 0;
+        }
         return 1;
     }
 

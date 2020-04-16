@@ -4,25 +4,22 @@ apply plugin: 'java-library'
 mainClassName = 'org.dsa.iot.etsdb.Main'
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
-version = '0.19.6'
+version = '0.19.7'
 
 repositories {
     mavenLocal()
     jcenter()
-    maven {
-        url 'https://oss.sonatype.org/content/repositories/snapshots/'
-    }
 }
 
 wrapper {
-    gradleVersion = '6.1'
+    gradleVersion = '6.2.2'
 }
 
 dependencies {
     compileOnly 'com.google.code.findbugs:annotations:[3.0.1,)'
-    api 'org.iot-dsa:commons:0.23.1'
-    api 'org.iot-dsa:dslink:0.23.1'
-    api 'org.iot-dsa:historian:0.23.1'
+    api 'org.iot-dsa:commons:0.23.2'
+    api 'org.iot-dsa:dslink:0.23.2'
+    api 'org.iot-dsa:historian:0.23.2'
 }
 
 run {

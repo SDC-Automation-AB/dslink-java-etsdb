@@ -1,8 +1,14 @@
 package org.etsdb.impl;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 
 class ChecksumInputStream extends InputStream implements ChecksumInput {
+
     private final InputStream delegate;
 
     private byte sum;
@@ -15,7 +21,7 @@ class ChecksumInputStream extends InputStream implements ChecksumInput {
     ChecksumInputStream(File dataFile) {
         if (dataFile.exists()) {
             try {
-                this.delegate = new BufferedInputStream(new FileInputStream(dataFile));
+                this.delegate = new BufferedInputStream(new FileInputStream(dataFile), 32768);
             } catch (FileNotFoundException e) {
                 // This should not happen because we just checked that the file exists.
                 throw new RuntimeException(e);
@@ -28,8 +34,9 @@ class ChecksumInputStream extends InputStream implements ChecksumInput {
 
     @Override
     public boolean checkSum() throws IOException {
-        if (eof)
+        if (eof) {
             return false;
+        }
 
         byte b = (byte) delegate.read();
         position++;
@@ -40,13 +47,14 @@ class ChecksumInputStream extends InputStream implements ChecksumInput {
 
     @Override
     public int read() throws IOException {
-        if (eof)
+        if (eof) {
             return -1;
+        }
 
         int i = delegate.read();
-        if (i == -1)
+        if (i == -1) {
             eof = true;
-        else {
+        } else {
             position++;
             sum += (byte) i;
         }
@@ -56,16 +64,18 @@ class ChecksumInputStream extends InputStream implements ChecksumInput {
 
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
-        if (eof)
+        if (eof) {
             return -1;
+        }
 
         int count = delegate.read(b, off, len);
-        if (count == -1)
+        if (count == -1) {
             eof = true;
-        else {
+        } else {
             position += count;
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < count; i++) {
                 sum += b[i + off];
+            }
         }
         return count;
     }
@@ -116,7 +126,8 @@ class ChecksumInputStream extends InputStream implements ChecksumInput {
 
     @Override
     public void close() throws IOException {
-        if (delegate != null)
+        if (delegate != null) {
             delegate.close();
+        }
     }
 }

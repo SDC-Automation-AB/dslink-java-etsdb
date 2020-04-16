@@ -1,11 +1,27 @@
-# Misc
-.DS_Store
-
 # Gradle
-.gradle
-build
+**/.gradle
+**/build
 
-# Project files
-*.iml
-.idea
-/bin/
+# Misc
+**.bak
+**.class
+**.iml
+**.old
+**/.classpath
+**/.DS_Store
+**/.idea
+**/.metadata
+**/.project
+**/.settings
+**/eclipseBin
+**/libJar
+**/out
+**/target
+**/bin
+
+# Runtime files
+**/.key
+db
+dslink.properties
+nodes.json
+nodes.json.bak

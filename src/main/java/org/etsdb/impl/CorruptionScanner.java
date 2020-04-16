@@ -1,18 +1,27 @@
 package org.etsdb.impl;
 
+import org.dsa.iot.shared.SharedObjects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class CorruptionScanner {
 
+    private static final List<File> emptyList = Collections.emptyList();
     private static final Logger logger = LoggerFactory.getLogger(CorruptionScanner.class.getName());
 
     private final DatabaseImpl<?> db;
+    private final AtomicInteger threads = new AtomicInteger(0);
 
     CorruptionScanner(DatabaseImpl<?> db) {
         this.db = db;
@@ -31,11 +40,11 @@ class CorruptionScanner {
         }
     }
 
-    void scan() throws IOException {
+    void scan() {
         scan(db.getBaseDir());
     }
 
-    private void scan(File parent) throws IOException {
+    private void scan(File parent) {
         File[] subdirs = parent.listFiles();
         if (subdirs != null) {
             for (File subdir : subdirs) {
@@ -48,9 +57,20 @@ class CorruptionScanner {
                 }
             }
         }
+        synchronized (this) {
+            while (threads.get() > 0) {
+                try {
+                    wait(1000);
+                } catch (InterruptedException ignore) {
+                }
+            }
+        }
     }
 
-    private void deepScan(File parent) throws IOException {
+    private void deepScan(File parent) {
+        if (!parent.isDirectory()) {
+            return;
+        }
         File[] subdirs = parent.listFiles();
         if (subdirs != null) {
             for (File subdir : subdirs) {
@@ -60,80 +80,117 @@ class CorruptionScanner {
         }
     }
 
-    private void checkSeriesDir(File seriesDir) throws IOException {
+    private void checkSeriesDir(final File seriesDir) {
         if (!seriesDir.isDirectory()) {
             return;
         }
-        String seriesId = seriesDir.getName();
+        File[] files = seriesDir.listFiles();
+        if ((files == null) || (files.length == 0)) {
+            return;
+        }
+        final List<File> temps = getFiles(files, ".temp");
+        final List<File> datas = getFiles(files, ".data");
+        final List<File> metas = getFiles(files, ".meta");
+        if (temps.isEmpty() && datas.isEmpty() && metas.isEmpty()) {
+            return;
+        }
+        threads.incrementAndGet();
+        SharedObjects.getDaemonThreadPool().execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    checkSeriesDir(seriesDir, temps, datas, metas);
+                } catch (Exception x) {
+                    logger.error(seriesDir.getPath(), x);
+                } finally {
+                    threads.decrementAndGet();
+                    synchronized (CorruptionScanner.this) {
+                        CorruptionScanner.this.notify();
+                    }
+                }
+            }
+        });
+    }
 
+    private void checkSeriesDir(File seriesDir,
+            List<File> temps,
+            List<File> datas,
+            List<File> metas) throws IOException {
         // temp files.
-        for (File temp : getFiles(seriesDir, ".temp")) {
-            long shardId = Utils.getShardId(temp.getName(), 10);
-            File data = new File(seriesDir, shardId + ".data");
-            File meta = new File(seriesDir, shardId + ".meta");
+        if (!temps.isEmpty()) {
+            for (File temp : temps) {
+                long shardId = Utils.getShardId(temp.getName(), 10);
+                File data = new File(seriesDir, shardId + ".data");
+                File meta = new File(seriesDir, shardId + ".meta");
 
-            if (data.exists()) {
-                // If the data file exists, then just delete the file
-                logger.warn("Found temp file " + temp + " with existing data file. Deleting.");
-                Utils.deleteWithRetry(temp);
-            } else if (meta.exists()) {
-                // If the meta file exists, then rename the temp file to data, and delete the meta file so that it gets
-                // recreated.
-                logger.warn("Found temp file " + temp + " without data but with meta file. Moving.");
-                Utils.renameWithRetry(temp, data);
-                Utils.deleteWithRetry(meta);
-            } else if (temp.length() > 0) {
-                // A lonely temp file, but with content. Rename to data and see wht the corruption check has to say.
-                logger.warn("Found temp file " + temp + " without data or meta file, with content. Moving.");
-                Utils.deleteWithRetry(temp);
-            } else {
-                // Otherwise, just delete the temp file.
-                logger.warn("Found temp file " + temp + " without data, meta file, or content. Deleting.");
-                Utils.deleteWithRetry(temp);
+                if (data.exists()) {
+                    // If the data file exists, then just delete the file
+                    logger.warn("Found temp file " + temp + " with existing data file. Deleting.");
+                    Utils.deleteWithRetry(temp);
+                } else if (meta.exists()) {
+                    // If the meta file exists, then rename the temp file to data, and delete the meta file so that it gets
+                    // recreated.
+                    logger.warn(
+                            "Found temp file " + temp +
+                                    " without data but with meta file. Moving.");
+                    Utils.renameWithRetry(temp, data);
+                    Utils.deleteWithRetry(meta);
+                } else {
+                    // Otherwise, just delete the temp file.
+                    logger.warn("Found temp file " + temp +
+                            " without data, meta file, or content. Deleting.");
+                    Utils.deleteWithRetry(temp);
+                }
             }
         }
 
-        // Ensure there is a meta file for every data file and vice versa.
-        List<File> datas = getFiles(seriesDir, ".data");
-        List<File> metas = getFiles(seriesDir, ".meta");
-
-        for (File data : datas) {
-            long shardId = Utils.getShardId(data.getName());
-            boolean found = false;
-            for (int i = metas.size() - 1; i >= 0; i--) {
-                File meta = metas.get(i);
-                if (Utils.getShardId(meta.getName()) == shardId) {
-                    metas.remove(i);
-                    found = true;
-                    break;
+        if (!datas.isEmpty()) {
+            for (File data : datas) {
+                long shardId = Utils.getShardId(data.getName());
+                boolean found = false;
+                for (int i = metas.size() - 1; i >= 0; i--) {
+                    File meta = metas.get(i);
+                    if (Utils.getShardId(meta.getName()) == shardId) {
+                        metas.remove(i);
+                        found = true;
+                        break;
+                    }
                 }
-            }
 
-            if (!found) {
-                logger.warn("Data file without meta file in series " + seriesId + ", shard " + shardId + ".");
-                // Don't need to recreate the meta file here. The
-                //                DataShard shard = new DataShard(seriesDir, seriesId, shardId);
-                //                shard.close();
+                if (!found) {
+                    logger.warn("Data file without meta file in series " + seriesDir.getName() +
+                            ", shard " + shardId + ".");
+                }
             }
         }
 
         // If there are any files left in the meta list, then they should just be deleted.
-        for (File meta : metas) {
-            logger.warn("Meta file without data file at " + meta + ". Deleting file");
-            Utils.deleteWithRetry(meta);
+        if (!metas.isEmpty()) {
+            for (File meta : metas) {
+                logger.warn("Meta file without data file at " + meta + ". Deleting file");
+                Utils.deleteWithRetry(meta);
+            }
         }
 
-        // Check data files for corruption.
-        for (File data : datas) {
-            checkFile(data);
+        if (!datas.isEmpty()) {
+            for (File data : datas) {
+                checkFile(data);
+            }
         }
     }
 
-    private List<File> getFiles(File dir, String suffix) {
-        List<File> result = new ArrayList<>();
-        File[] files = dir.listFiles(new SuffixFilter(suffix));
-        if (files != null) {
-            Collections.addAll(result, files);
+    private List<File> getFiles(File[] files, String suffix) {
+        List<File> result = null;
+        for (File file : files) {
+            if (!file.isDirectory() && file.getName().endsWith(suffix)) {
+                if (result == null) {
+                    result = new ArrayList<>();
+                }
+                result.add(file);
+            }
+        }
+        if (result == null) {
+            return emptyList;
         }
         return result;
     }
@@ -148,7 +205,8 @@ class CorruptionScanner {
             }
 
             // If any corruption was found, delete the meta file so that it gets recreated.
-            Utils.deleteWithRetry(new File(data.getParent(), Utils.getShardId(data.getName()) + ".meta"));
+            Utils.deleteWithRetry(
+                    new File(data.getParent(), Utils.getShardId(data.getName()) + ".meta"));
 
             logger.warn("Corruption detected in " + data + " at position " + position);
             fixCorruption(data, position);
@@ -291,7 +349,8 @@ class CorruptionScanner {
         Utils.renameWithRetry(temp, data);
     }
 
-    private void copy(InputStream in, OutputStream out, long length, byte[] buf) throws IOException {
+    private void copy(InputStream in, OutputStream out, long length, byte[] buf)
+            throws IOException {
         while (length > 0) {
             int chunk = buf.length;
             if (length < buf.length) {
@@ -306,17 +365,4 @@ class CorruptionScanner {
         }
     }
 
-    static class SuffixFilter implements FilenameFilter {
-
-        private final String suffix;
-
-        SuffixFilter(String suffix) {
-            this.suffix = suffix;
-        }
-
-        @Override
-        public boolean accept(File dir, String name) {
-            return name.endsWith(suffix);
-        }
-    }
 }

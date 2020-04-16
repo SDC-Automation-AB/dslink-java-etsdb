@@ -8,6 +8,7 @@ import java.io.IOException;
 
 
 class Janitor implements Runnable {
+
     static final Logger logger = LoggerFactory.getLogger(Janitor.class.getName());
 
     private Handler<Integer> handler;
@@ -55,7 +56,7 @@ class Janitor implements Runnable {
 
         running = true;
 
-        thread = new Thread(this, "ETSDB Maintenance");
+        thread = new Thread(this, "Maintenance " + db.getBaseDir().getPath());
         //thread.setDaemon(true);
         thread.setPriority(Thread.MAX_PRIORITY - 1);
         thread.start();
@@ -80,8 +81,9 @@ class Janitor implements Runnable {
 
     private void runImpl() {
         long next = nextFileLockCheck;
-        if (next > nextFlush)
+        if (next > nextFlush) {
             next = nextFlush;
+        }
 
         long sleep = next - System.currentTimeMillis();
         if (sleep > 0) {
@@ -96,8 +98,9 @@ class Janitor implements Runnable {
             }
         }
 
-        if (!running)
+        if (!running) {
             return;
+        }
 
         long now = System.currentTimeMillis();
         if (now >= nextFileLockCheck) {
@@ -114,8 +117,10 @@ class Janitor implements Runnable {
                 // A GC is required for the mapped buffers to be closed.
                 if (running) {
                     if (db.tooManyFiles() || fileClosures > db.maxOpenFiles / 2) {
-                        if (logger.isDebugEnabled())
-                            logger.debug("Running garbage collection. Files to close: " + fileClosures);
+                        if (logger.isDebugEnabled()) {
+                            logger.debug(
+                                    "Running garbage collection. Files to close: " + fileClosures);
+                        }
                         System.gc();
                         gc = true;
                         db.openFiles.addAndGet(-fileClosures);
@@ -135,8 +140,10 @@ class Janitor implements Runnable {
 
             if (logger.isDebugEnabled()) {
                 logger.debug("Write queue flush took " + time + " ms");
-                logger.debug("write/s=" + db.getWritesPerSecond() + ", backdateCount=" + db.getBackdateCount()
-                        + ", writeCount=" + db.getWriteCount() + ", openFiles=" + db.getOpenFiles() + ", forcedClose="
+                logger.debug("write/s=" + db.getWritesPerSecond() + ", backdateCount=" +
+                        db.getBackdateCount()
+                        + ", writeCount=" + db.getWriteCount() + ", openFiles=" +
+                        db.getOpenFiles() + ", forcedClose="
                         + db.getForcedClose());
             }
 
@@ -145,10 +152,11 @@ class Janitor implements Runnable {
             // sleep time exceed the flush interval * 4.
             time *= 10;
 
-            if (gc || time < flushInterval)
+            if (gc || time < flushInterval) {
                 time = flushInterval;
-            else if (time > flushInterval * 4)
+            } else if (time > flushInterval * 4) {
                 time = flushInterval * 4;
+            }
             nextFlush = System.currentTimeMillis() + time;
         }
     }

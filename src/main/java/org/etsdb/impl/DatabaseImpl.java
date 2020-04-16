@@ -4,7 +4,13 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.etsdb.utils.atomic.NotifyAtomicInteger;
 import org.dsa.iot.etsdb.utils.atomic.NotifyAtomicLong;
-import org.etsdb.*;
+import org.etsdb.ByteArrayBuilder;
+import org.etsdb.Database;
+import org.etsdb.DbConfig;
+import org.etsdb.EtsdbException;
+import org.etsdb.QueryCallback;
+import org.etsdb.Serializer;
+import org.etsdb.TimeRange;
 import org.etsdb.util.DirectoryUtils;
 import org.etsdb.util.EventHistogram;
 import org.slf4j.Logger;
@@ -12,13 +18,18 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- *
  * @param <T> the class of data that is written to this database.
  * @author Matthew Lohbihler
  */
@@ -122,13 +133,9 @@ public class DatabaseImpl<T> implements Database<T> {
         DBProperties props = getProperties();
         if (!props.getBoolean("clean", false)) {
             if (config.isRunCorruptionScan()) {
-                try {
-                    long start = System.currentTimeMillis();
-                    new CorruptionScanner(this).scan();
-                    logger.info("Corruption scan took " + (System.currentTimeMillis() - start) + "ms");
-                } catch (IOException e) {
-                    throw new EtsdbException(e);
-                }
+                long start = System.currentTimeMillis();
+                new CorruptionScanner(this).scan();
+                logger.info("Corruption scan took " + (System.currentTimeMillis() - start) + "ms");
             }
         } else {
             if (config.isRunCorruptionScan()) {
@@ -243,12 +250,14 @@ public class DatabaseImpl<T> implements Database<T> {
     }
 
     @Override
-    public void query(String seriesId, long fromTs, long toTs, int limit, final QueryCallback<T> cb) {
+    public void query(String seriesId, long fromTs, long toTs, int limit,
+            final QueryCallback<T> cb) {
         query(seriesId, fromTs, toTs, limit, false, cb);
     }
 
     @Override
-    public void query(String seriesId, long fromTs, long toTs, int limit, boolean reverse, final QueryCallback<T> cb) {
+    public void query(String seriesId, long fromTs, long toTs, int limit, boolean reverse,
+            final QueryCallback<T> cb) {
         lockConcurrent();
         try {
             Series<T> series = getSeries(seriesId);
