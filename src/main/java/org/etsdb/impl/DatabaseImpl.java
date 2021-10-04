@@ -1,6 +1,5 @@
 package org.etsdb.impl;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.etsdb.utils.atomic.NotifyAtomicInteger;
 import org.dsa.iot.etsdb.utils.atomic.NotifyAtomicLong;
@@ -411,7 +410,6 @@ public class DatabaseImpl<T> implements Database<T> {
     }
 
     @Override
-    @SuppressFBWarnings("DM_GC")
     public void close() throws IOException {
         lockExclusive();
         try {

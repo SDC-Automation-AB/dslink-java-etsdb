@@ -1,6 +1,5 @@
 package org.dsa.iot.etsdb.serializer;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.json.JsonArray;
 import org.dsa.iot.dslink.util.json.JsonObject;
@@ -21,7 +20,6 @@ public class ByteData extends QueryData {
         this.type = type;
     }
 
-    @SuppressFBWarnings("EI_EXPOSE_REP")
     public void setBytes(byte[] bytes) {
         this.bytes = bytes;
     }
