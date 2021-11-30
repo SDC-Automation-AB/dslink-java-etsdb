@@ -5,7 +5,7 @@ apply plugin: 'maven'
 mainClassName = 'org.dsa.iot.etsdb.Main'
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
-version = '0.19.9'
+version = '0.20.0'
 
 repositories {
     mavenLocal()
@@ -18,7 +18,9 @@ wrapper {
 }
 
 dependencies {
-    api 'com.github.iot-dsa:sdk-dslink-java:1.0.0'
+    //api 'org.iot-dsa:historian:1.0.1' //for local install testing
+    //api 'org.iot-dsa:commons:1.0.1' //for local install testing
+    api 'com.github.iot-dsa:sdk-dslink-java:1.0.1'
 }
 
 run {

@@ -10,7 +10,6 @@ import org.etsdb.EtsdbException;
 import org.etsdb.QueryCallback;
 import org.etsdb.Serializer;
 import org.etsdb.TimeRange;
-import org.etsdb.util.DirectoryUtils;
 import org.etsdb.util.EventHistogram;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,10 +82,14 @@ public class DatabaseImpl<T> implements Database<T> {
         }
         lockExclusive();
         try {
+            AvailableSpace.unregisterInterest(baseDir);
+            UsedSpace.unregisterInterest(baseDir);
             if (!this.baseDir.renameTo(newLoc)) {
                 throw new RuntimeException("Failed to move database");
             }
             this.baseDir = newLoc;
+            AvailableSpace.registerInterest(baseDir);
+            UsedSpace.registerInterest(baseDir);
         } catch (RuntimeException e) {
             try {
                 close();
@@ -105,6 +108,8 @@ public class DatabaseImpl<T> implements Database<T> {
                 logger.error("Failed to create baseDir: {}", baseDir.getParent());
             }
         }
+        AvailableSpace.registerInterest(baseDir);
+        UsedSpace.registerInterest(baseDir);
 
         logger.info("Database started at {}", baseDir.getAbsolutePath());
 
@@ -331,12 +336,12 @@ public class DatabaseImpl<T> implements Database<T> {
 
     @Override
     public long getDatabaseSize() {
-        return DirectoryUtils.getSize(baseDir).getSize();
+        return UsedSpace.getUsedSpace(baseDir);
     }
 
     @Override
     public long availableSpace() {
-        return baseDir.getUsableSpace();
+        return AvailableSpace.getAvailableSpace(baseDir);
     }
 
     @Override
@@ -412,6 +417,8 @@ public class DatabaseImpl<T> implements Database<T> {
     @Override
     public void close() throws IOException {
         lockExclusive();
+        AvailableSpace.unregisterInterest(baseDir);
+        UsedSpace.unregisterInterest(baseDir);
         try {
             if (!closed) {
                 if (backdates != null) {

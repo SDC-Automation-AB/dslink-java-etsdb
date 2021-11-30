@@ -91,8 +91,7 @@ class Janitor implements Runnable {
                 if (running) {
                     try {
                         wait(sleep);
-                    } catch (InterruptedException e) {
-                        // Ignore
+                    } catch (InterruptedException ignore) {
                     }
                 }
             }
@@ -105,7 +104,11 @@ class Janitor implements Runnable {
         long now = System.currentTimeMillis();
         if (now >= nextFileLockCheck) {
             fileLock.update();
-            nextFileLockCheck = now + fileLockCheckInterval;
+            nextFileLockCheck = System.currentTimeMillis() + fileLockCheckInterval;
+        }
+
+        if (!running) {
+            return;
         }
 
         if (now >= nextFlush) {

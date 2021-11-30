@@ -456,7 +456,7 @@ public class Db extends Database {
                     }
 
                 }
-            }, 0, 5, TimeUnit.SECONDS);
+            }, 0, 10, TimeUnit.SECONDS);
             b.build();
         }
         {
@@ -488,7 +488,7 @@ public class Db extends Database {
                     }
 
                 }
-            }, 0, 5, TimeUnit.SECONDS);
+            }, 0, 10, TimeUnit.SECONDS);
             b.build();
         }
     }
