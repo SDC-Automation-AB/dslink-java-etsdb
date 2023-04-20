@@ -1,11 +1,12 @@
 apply plugin: 'application'
 apply plugin: 'java-library'
-apply plugin: 'maven'
+apply plugin: 'maven-publish'
 
+group = 'org.iot-dsa'
+version = '0.20.1'
 mainClassName = 'org.dsa.iot.etsdb.Main'
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
-version = '0.20.0'
 
 repositories {
     mavenLocal()
@@ -13,14 +14,27 @@ repositories {
     maven { url 'https://jitpack.io' }
 }
 
-wrapper {
-    gradleVersion = '6.8.3'
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+tasks.withType(Javadoc) {
+    options.addStringOption('Xdoclint:none', '-quiet')
 }
 
 dependencies {
-    //api 'org.iot-dsa:historian:1.0.1' //for local install testing
-    //api 'org.iot-dsa:commons:1.0.1' //for local install testing
-    api 'com.github.iot-dsa:sdk-dslink-java:1.0.1'
+    //api 'org.iot-dsa:historian:1.0.2' //for local install testing
+    //api 'org.iot-dsa:commons:1.0.2' //for local install testing
+    api 'com.github.iot-dsa:sdk-dslink-java:1.1.0'
 }
 
 run {
@@ -29,3 +43,7 @@ run {
 }
 
 applicationDistribution.from(new File(project.projectDir, "/dslink.json"))
+
+wrapper {
+    gradleVersion = '6.9.2'
+}
