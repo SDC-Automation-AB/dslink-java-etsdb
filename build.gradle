@@ -3,7 +3,7 @@ apply plugin: 'java-library'
 apply plugin: 'maven-publish'
 
 group = 'org.iot-dsa'
-version = '0.20.1'
+version = '0.20.2'
 mainClassName = 'org.dsa.iot.etsdb.Main'
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
@@ -32,9 +32,9 @@ tasks.withType(Javadoc) {
 }
 
 dependencies {
-    //api 'org.iot-dsa:historian:1.0.2' //for local install testing
-    //api 'org.iot-dsa:commons:1.0.2' //for local install testing
-    api 'com.github.iot-dsa:sdk-dslink-java:1.1.0'
+    //api 'org.iot-dsa:historian:1.1.1' //for local install testing
+    //api 'org.iot-dsa:commons:1.1.1' //for local install testing
+    api 'com.github.iot-dsa:sdk-dslink-java:1.1.1'
 }
 
 run {
